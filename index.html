@@ -696,7 +696,7 @@ h1{ margin:30px 0 0 0; font-size:1.05rem; letter-spacing:4px; font-weight:800; t
 
     /* === LÓGICA DO TOUR E MODAL DE START === */
     const tourSteps = [
-        { center: true, title: 'tour_intro_title', text: 'tour_intro_desc', tab: 'inventory' },
+        { center: true, wide: true, title: 'tour_intro_title', text: 'tour_intro_desc', tab: 'inventory' },
         { target: 'btn-tour-sync', title: 'tour_t1', text: 'tour_d1', tab: 'inventory' },
         { target: 'btn-tour-gyazo', title: 'tour_t2', text: 'tour_d2', tab: 'inventory' },
         { target: 'btn-tour-search', title: 'tour_t3', text: 'tour_d3', tab: 'inventory' },
@@ -735,7 +735,6 @@ h1{ margin:30px 0 0 0; font-size:1.05rem; letter-spacing:4px; font-weight:800; t
 
         const step = tourSteps[currentStep];
         
-        // Auto-navegação de abas no tour
         if (step.tab) {
             const tabBtn = document.getElementById('btn-tab-' + step.tab);
             if(tabBtn && !tabBtn.classList.contains('active')) {
@@ -794,7 +793,6 @@ h1{ margin:30px 0 0 0; font-size:1.05rem; letter-spacing:4px; font-weight:800; t
             document.getElementById('tour-overlay').style.display = 'none';
             document.getElementById('tour-dialog').style.display = 'none';
             
-            // Volta para a aba principal ao finalizar
             const invTab = document.getElementById('btn-tab-inventory');
             if(invTab) switchTab('inventory', invTab);
         }, 300);
@@ -839,7 +837,6 @@ h1{ margin:30px 0 0 0; font-size:1.05rem; letter-spacing:4px; font-weight:800; t
             document.getElementById("delete-item-name").innerText = num + suffix;
         }
 
-        // Atualiza textos do tour caso mude o idioma durante
         if (document.getElementById('tour-dialog').style.display === 'block') {
             document.getElementById('tour-title').innerText = t(tourSteps[currentStep].title);
             document.getElementById('tour-text').innerHTML = t(tourSteps[currentStep].text);
@@ -890,6 +887,16 @@ h1{ margin:30px 0 0 0; font-size:1.05rem; letter-spacing:4px; font-weight:800; t
     const urlParams = new URLSearchParams(window.location.search);
     const API = urlParams.get("api");
     const TOKEN = urlParams.get("t");
+
+    // NOVA SEGURANÇA: Esconder o token da URL e salvar na sessão
+    let SESSION_TOKEN = TOKEN;
+    if (TOKEN) {
+        sessionStorage.setItem("mmc_auth_token", TOKEN);
+        const cleanUrl = window.location.pathname + "?api=" + encodeURIComponent(API);
+        window.history.replaceState({}, document.title, cleanUrl);
+    } else {
+        SESSION_TOKEN = sessionStorage.getItem("mmc_auth_token");
+    }
     
     let inventoryData = []; 
     let currentOpenCategoryViewId = "";
@@ -969,10 +976,10 @@ h1{ margin:30px 0 0 0; font-size:1.05rem; letter-spacing:4px; font-weight:800; t
     }
 
     async function apiCall(method, bodyData = null) {
-        if(!API || !TOKEN) throw new Error("Unauthorized");
+        if(!API || !SESSION_TOKEN) throw new Error("Unauthorized");
         let cleanAPI = API;
         if(cleanAPI.endsWith("/")) cleanAPI = cleanAPI.slice(0, -1);
-        const fetchUrl = cleanAPI + "/?t=" + TOKEN;
+        const fetchUrl = cleanAPI + "/?t=" + SESSION_TOKEN;
         
         const options = { method: method };
         if (bodyData) options.body = bodyData;
@@ -982,7 +989,7 @@ h1{ margin:30px 0 0 0; font-size:1.05rem; letter-spacing:4px; font-weight:800; t
     }
 
     async function loadInventory(){
-        if(!API || !TOKEN){ 
+        if(!API || !SESSION_TOKEN){ 
             showAuthError(); 
             return; 
         }
@@ -1020,10 +1027,6 @@ h1{ margin:30px 0 0 0; font-size:1.05rem; letter-spacing:4px; font-weight:800; t
             updateSelectedCount(); 
             renderCategories();
             toast(t('toast_sync_ok'));
-
-            if (!localStorage.getItem('mmc_tour_done')) {
-                setTimeout(openTourLangModal, 1000);
-            }
 
         }catch(e){
             if (e.message === "Unauthorized") {
